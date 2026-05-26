@@ -1,0 +1,591 @@
+[
+    {
+        "id": "ce1e45cbf51fc423",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "e4ff8e7013b77896",
+        "type": "mqtt-broker",
+        "name": "cisterna/status",
+        "broker": "localhost",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "d6a30fddfa7456ff",
+        "type": "ui-base",
+        "name": "My Dashboard",
+        "path": "/dashboard",
+        "appIcon": "",
+        "includeClientData": true,
+        "acceptsClientConfig": [
+            "ui-notification",
+            "ui-control"
+        ],
+        "showPathInSidebar": false,
+        "headerContent": "page",
+        "navigationStyle": "default",
+        "titleBarStyle": "default",
+        "showReconnectNotification": true,
+        "notificationDisplayTime": 1,
+        "showDisconnectNotification": true,
+        "allowInstall": false
+    },
+    {
+        "id": "18e2bcdea60ac2b5",
+        "type": "ui-theme",
+        "name": "Home",
+        "colors": {
+            "surface": "#081221",
+            "primary": "#1e90ff",
+            "bgPage": "#07111f",
+            "groupBg": "#0b1728",
+            "groupOutline": "#1b2a41"
+        },
+        "sizes": {
+            "density": "default",
+            "pagePadding": "12px",
+            "groupGap": "12px",
+            "groupBorderRadius": "4px",
+            "widgetGap": "12px"
+        }
+    },
+    {
+        "id": "dadf68c4b74b3b30",
+        "type": "ui-page",
+        "name": "Monitoramento De Agua",
+        "ui": "d6a30fddfa7456ff",
+        "path": "/home",
+        "icon": "home",
+        "layout": "grid",
+        "theme": "18e2bcdea60ac2b5",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 1,
+        "className": "text",
+        "visible": "true",
+        "disabled": "false"
+    },
+    {
+        "id": "06d9654aeca5098a",
+        "type": "ui-group",
+        "name": "Group 1",
+        "page": "dadf68c4b74b3b30",
+        "width": "4",
+        "height": 1,
+        "order": 1,
+        "showTitle": false,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "be7d576764ebb1fa",
+        "type": "ui-group",
+        "name": "Turbidez",
+        "page": "dadf68c4b74b3b30",
+        "width": "4",
+        "height": "1",
+        "order": 2,
+        "showTitle": false,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "f3c1e039f7c79075",
+        "type": "ui-group",
+        "name": "Group 3",
+        "page": "dadf68c4b74b3b30",
+        "width": "4",
+        "height": 1,
+        "order": 3,
+        "showTitle": false,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "794137975de0ef57",
+        "type": "ui-group",
+        "name": "Grafico de linha do nivel da agua",
+        "page": "dadf68c4b74b3b30",
+        "width": 6,
+        "height": 1,
+        "order": 4,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "a50abdc28daafbb7",
+        "type": "ui-group",
+        "name": "Grafico de linha da turbidez ",
+        "page": "dadf68c4b74b3b30",
+        "width": 6,
+        "height": 1,
+        "order": 5,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "839ca86947cefd0f",
+        "type": "mqtt in",
+        "z": "ce1e45cbf51fc423",
+        "name": "",
+        "topic": "cisterna/status",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "e4ff8e7013b77896",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 490,
+        "y": 200,
+        "wires": [
+            [
+                "a6ee750f53dfc493"
+            ]
+        ]
+    },
+    {
+        "id": "a6ee750f53dfc493",
+        "type": "debug",
+        "z": "ce1e45cbf51fc423",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 700,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "922dd7a0072b8a3c",
+        "type": "ui-chart",
+        "z": "ce1e45cbf51fc423",
+        "group": "794137975de0ef57",
+        "name": "HistoricoNivel",
+        "label": "Histórico do Nível da Água",
+        "order": 1,
+        "chartType": "line",
+        "category": "topic",
+        "categoryType": "msg",
+        "xAxisLabel": "",
+        "xAxisProperty": "",
+        "xAxisPropertyType": "timestamp",
+        "xAxisType": "time",
+        "xAxisFormat": "",
+        "xAxisFormatType": "{HH}:{mm}",
+        "xmin": "",
+        "xmax": "",
+        "yAxisLabel": "",
+        "yAxisProperty": "payload",
+        "yAxisPropertyType": "msg",
+        "ymin": "0",
+        "ymax": "100",
+        "bins": 10,
+        "action": "append",
+        "stackSeries": false,
+        "pointShape": "circle",
+        "pointRadius": "10",
+        "showLegend": true,
+        "removeOlder": "2",
+        "removeOlderUnit": "3600",
+        "removeOlderPoints": "",
+        "colors": [
+            "#0095ff",
+            "#ff0000",
+            "#ff7f0e",
+            "#2ca02c",
+            "#a347e1",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "textColor": [
+            "#666666"
+        ],
+        "textColorDefault": true,
+        "gridColor": [
+            "#e5e5e5"
+        ],
+        "gridColorDefault": true,
+        "width": 6,
+        "height": "6",
+        "className": "meu-grafico-water-dark",
+        "interpolation": "linear",
+        "x": 540,
+        "y": 520,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "e4f7e5879ac68341",
+        "type": "ui-chart",
+        "z": "ce1e45cbf51fc423",
+        "group": "a50abdc28daafbb7",
+        "name": "historicoTurbidez",
+        "label": "Histórico do Nível da turbidez",
+        "order": 1,
+        "chartType": "line",
+        "category": "topic",
+        "categoryType": "msg",
+        "xAxisLabel": "",
+        "xAxisProperty": "",
+        "xAxisPropertyType": "timestamp",
+        "xAxisType": "time",
+        "xAxisFormat": "",
+        "xAxisFormatType": "{HH}:{mm}",
+        "xmin": "",
+        "xmax": "",
+        "yAxisLabel": "",
+        "yAxisProperty": "payload",
+        "yAxisPropertyType": "msg",
+        "ymin": "0",
+        "ymax": "100",
+        "bins": 10,
+        "action": "append",
+        "stackSeries": false,
+        "pointShape": "circle",
+        "pointRadius": "10",
+        "showLegend": true,
+        "removeOlder": "2",
+        "removeOlderUnit": "3600",
+        "removeOlderPoints": "",
+        "colors": [
+            "#0095ff",
+            "#ff0000",
+            "#ff7700",
+            "#2ca02c",
+            "#a347e1",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "textColor": [
+            "#666666"
+        ],
+        "textColorDefault": true,
+        "gridColor": [
+            "#e5e5e5"
+        ],
+        "gridColorDefault": true,
+        "width": 6,
+        "height": "6",
+        "className": "",
+        "interpolation": "linear",
+        "x": 550,
+        "y": 680,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "eec55726d41a2347",
+        "type": "ui-template",
+        "z": "ce1e45cbf51fc423",
+        "group": "be7d576764ebb1fa",
+        "page": "",
+        "ui": "",
+        "name": "Turbidez",
+        "order": 1,
+        "width": "0",
+        "height": "0",
+        "head": "",
+        "format": "<template>\n    <div class=\"card\">\n\n        <div class=\"title\">\n            TURBIDEZ DA ÁGUA\n        </div>\n\n        <div class=\"gauge-container\">\n\n            <svg class=\"gauge\" viewBox=\"0 0 200 140\">\n\n                <path d=\"M20 100 A80 80 0 0 1 180 100\" class=\"gauge-bg\" />\n\n                <path d=\"M20 100 A80 80 0 0 1 180 100\" class=\"gauge-fill\" :style=\"gaugeStyle\" />\n\n            </svg>\n\n            <div class=\"value-container\">\n\n                <div class=\"value\">\n                    {{ turbidez }}\n                </div>\n\n                <div class=\"unit\">\n                    NTU\n                </div>\n\n            </div>\n\n        </div>\n\n        <div class=\"status\">\n\n            Qualidade:\n\n            <span :style=\"{ color: statusColor }\">\n                {{ statusText }}\n            </span>\n\n        </div>\n\n        <div class=\"insight\">\n            {{ insightText }}\n        </div>\n\n    </div>\n</template>\n\n<script>\n    export default {\n    // 1. ADICIONADO: Estado inicial para o Vue monitorar as atualizações da turbidez\n    data() {\n        return {\n            turbidez: 0 // Valor inicial padrão\n        }\n    },\n\n    computed: {\n\n        // STATUS BASEADO EM NTU REAL\n        statusText() {\n            /*\n                REFERÊNCIA REAL (NTU)\n                0 - 5     → Excelente\n                6 - 20    → Boa\n                21 - 50   → Atenção\n                51+       → Crítica\n            */\n            if (this.turbidez <= 5) {\n                return \"EXCELENTE\"\n            }\n            if (this.turbidez <= 20) {\n                return \"BOA\"\n            }\n            if (this.turbidez <= 50) {\n                return \"ATENÇÃO\"\n            }\n            return \"CRÍTICA\"\n        },\n\n        // COR DO STATUS\n        statusColor() {\n            if (this.turbidez <= 5) {\n                return \"#22C55E\"\n            }\n            if (this.turbidez <= 20) {\n                return \"#3BA4FF\"\n            }\n            if (this.turbidez <= 50) {\n                return \"#F59E0B\"\n            }\n            return \"#EF4444\"\n        },\n\n        // TEXTO AUTOMÁTICO\n        insightText() {\n            if (this.turbidez <= 5) {\n                return \"Água visualmente limpa e adequada.\"\n            }\n            if (this.turbidez <= 20) {\n                return \"Pequena presença de partículas suspensas.\"\n            }\n            if (this.turbidez <= 50) {\n                return \"Aumento perceptível da turbidez. Recomenda-se monitoramento.\"\n            }\n            return \"Alta concentração de resíduos detectada. Limpeza recomendada.\"\n        },\n\n        // COR DO GAUGE\n        gaugeColor() {\n            if (this.turbidez <= 5) {\n                return \"#22C55E\"\n            }\n            if (this.turbidez <= 20) {\n                return \"#3BA4FF\"\n            }\n            if (this.turbidez <= 50) {\n                return \"#F59E0B\"\n            }\n            return \"#EF4444\"\n        },\n\n        // ESTILO DO GAUGE\n        gaugeStyle() {\n            /*\n                ESCALA VISUAL:\n                0 → 100 NTU\n            */\n            const maxNTU = 100\n            const percent = Math.min(this.turbidez, maxNTU) / maxNTU\n            const dash = 251 * percent\n\n            return {\n                stroke: this.gaugeColor,\n                strokeDasharray: `${dash} 251`\n            }\n        }\n    },\n\n    watch: {\n        // RECEBE DADOS MQTT / NODE-RED\n        msg: {\n            handler(newMsg) {\n                if (newMsg && newMsg.payload !== undefined && newMsg.payload !== null) {\n                    // Garante que o valor recebido seja convertido em número puro\n                    this.turbidez = Number(newMsg.payload);\n                }\n            },\n            immediate: true, // Captura o valor imediatamente se ele já estiver no fluxo\n            deep: true\n        }\n    }\n}\n</script>\n\n<style>\n    /* CARD */\n    .card {\n        background: #0B1728;\n        border-radius: 18px;\n        padding: 16px;\n        color: #F5F7FA;\n        box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);\n        width: 100%;\n        height: 100%;\n        box-sizing: border-box;\n        display: flex;\n        flex-direction: column;\n        justify-content: space-between;\n    }\n\n    /* TITULO */\n    .title {\n        font-size: clamp(16px, 1.8vw, 22px);\n        font-weight: bold;\n        color: #3BA4FF;\n        text-align: center;\n        margin-bottom: 8px;\n    }\n\n    /* CONTAINER */\n    .gauge-container {\n        position: relative;\n        width: 100%;\n        height: 230px;\n        display: flex;\n        justify-content: center;\n        align-items: center;\n    }\n\n    /* SVG */\n    .gauge {\n        width: 100%;\n        height: 100%;\n    }\n\n    /* FUNDO */\n    .gauge-bg {\n        fill: none;\n        stroke: #1B2A41;\n        stroke-width: 18;\n        stroke-linecap: round;\n    }\n\n    /* PREENCHIMENTO */\n    .gauge-fill {\n        fill: none;\n        stroke-width: 18;\n        stroke-linecap: round;\n        transition: 0.5s ease;\n    }\n\n    /* VALOR CENTRAL */\n    .value-container {\n        position: absolute;\n        top: 58%;\n        left: 50%;\n        transform: translate(-50%, -50%);\n        text-align: center;\n    }\n\n    /* NUMERO */\n    .value {\n        font-size: clamp(34px, 4vw, 54px);\n        font-weight: bold;\n        line-height: 1;\n    }\n\n    /* NTU */\n    .unit {\n        font-size: clamp(14px, 1.5vw, 20px);\n        color: #A9B4C2;\n        margin-top: 4px;\n    }\n\n    /* STATUS */\n    .status {\n        margin-top: 6px;\n        font-size: clamp(14px, 1.5vw, 18px);\n        text-align: center;\n        font-weight: bold;\n    }\n\n    /* INSIGHT */\n    .insight {\n        margin-top: 10px;\n        text-align: center;\n        font-size: clamp(11px, 1.2vw, 15px);\n        color: #A9B4C2;\n        line-height: 1.4;\n    }\n\n    /* MOBILE */\n    @media (max-width: 600px) {\n        .card {\n            padding: 12px;\n        }\n\n        .gauge-container {\n            height: 180px;\n        }\n    }\n</style>",
+        "storeOutMessages": true,
+        "passthru": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 1160,
+        "y": 420,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "864e0f5927906959",
+        "type": "ui-template",
+        "z": "ce1e45cbf51fc423",
+        "group": "06d9654aeca5098a",
+        "page": "",
+        "ui": "",
+        "name": "NIvel De Agua",
+        "order": 1,
+        "width": "0",
+        "height": "0",
+        "head": "",
+        "format": "<template>\n    <div class=\"card\">\n\n        <div class=\"title\">\n            NÍVEL DA ÁGUA\n        </div>\n\n        <div class=\"gauge-container\">\n\n            <div class=\"native-tank-outline\">\n\n                <div class=\"native-tank-fill\" :style=\"tankStyle\">\n\n                    <svg class=\"wave-svg\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1200 120\"\n                        preserveAspectRatio=\"none\">\n                        <path\n                            d=\"M0,60 C150,100 350,20 500,60 C650,100 850,20 1000,60 C1150,100 1350,20 1500,60 L1500,120 L0,120 Z\"\n                            class=\"wave-path\"></path>\n                    </svg>\n\n                </div>\n\n                <div class=\"value-container\">\n                    <span class=\"value\">{{ nivel }}</span>\n                    <span class=\"unit\">%</span>\n                </div>\n\n            </div>\n\n        </div>\n\n        <div class=\"status\">\n            Status:\n            <span :style=\"{ color: statusColor }\">\n                {{ statusText }}\n            </span>\n        </div>\n\n        <div class=\"insight\">\n            {{ insightText }}\n        </div>\n\n    </div>\n</template>\n\n<script>\n    export default {\n    data() {\n        return {\n            nivel: 0\n        }\n    },\n    computed: {\n        statusText() {\n            if (this.nivel <= 20) return \"CRÍTICO\"\n            if (this.nivel <= 40) return \"BAIXO\"\n            if (this.nivel <= 70) return \"NORMAL\"\n            return \"IDEAL\"\n        },\n        statusColor() {\n            if (this.nivel <= 20) return \"#EF4444\"\n            if (this.nivel <= 40) return \"#F59E0B\"\n            if (this.nivel <= 70) return \"#3BA4FF\"\n            return \"#22C55E\"\n        },\n        insightText() {\n            if (this.nivel <= 20) return \"Volume crítico. Risco de desabastecimento.\"\n            if (this.nivel <= 40) return \"Volume abaixo da média. Economize água.\"\n            if (this.nivel <= 70) return \"Volume seguro e estável para consumo.\"\n            return \"Reservatório operando em excelente capacidade.\"\n        },\n        tankStyle() {\n            return {\n                height: `${this.nivel}%`,\n                backgroundColor: '#3da8ff' \n            }\n        }\n    },\n    watch: {\n        msg() {\n            if (this.msg?.payload != null) {\n                this.nivel = Math.min(Math.max(Number(this.msg.payload), 0), 100)\n            }\n        }\n    }\n}\n</script>\n\n<style>\n    /* CARD */\n    .card {\n        background: #0B1728;\n        border-radius: 18px;\n        padding: 12px;\n        color: #F5F7FA;\n        box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);\n        width: 100%;\n        height: 100%;\n        box-sizing: border-box;\n        display: flex;\n        flex-direction: column;\n        justify-content: space-between;\n        overflow: hidden;\n    }\n\n    /* TITULO */\n    .title {\n        font-size: clamp(14px, 1.6vw, 20px);\n        font-weight: bold;\n        color: #3BA4FF;\n        text-align: center;\n        margin-bottom: 2px;\n    }\n\n    /* CONTAINER DO TANQUE - AJUSTADO PARA O TIPO HORIZONTAL */\n    .gauge-container {\n        position: relative;\n        width: 100%;\n        height: 185px;\n        display: flex;\n        justify-content: center;\n        align-items: center;\n        margin: 2px 0;\n        padding: 0 4px; /* Garante que as bordas do tanque não colem perfeitamente na parede do card */\n        box-sizing: border-box; /* Garante que o padding não estique o tamanho total */\n    }\n\n    /* O TANQUE - AGORA FLUIDO HORIZONTALMENTE */\n    .native-tank-outline {\n        width: 100%; /* Ocupa 100% da largura do contêiner */\n        /* max-width: 190px; ---> REMOVIDO PARA ESTICAR HORIZONTALMENTE */\n        height: 100%;\n        border: 3.5px solid #3da8ff;\n        border-radius: 14px;\n        position: relative;\n        overflow: hidden;\n        background: #09121f;\n        display: flex;\n        align-items: flex-end;\n        box-shadow: inset 0 0 15px rgba(61, 168, 255, 0.15);\n    }\n\n    /* O LÍQUIDO */\n    .native-tank-fill {\n        width: 100%;\n        position: relative;\n        transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);\n    }\n\n    /* A ONDA */\n    .wave-svg {\n        position: absolute;\n        top: -22px;\n        left: 0;\n        width: 200%;\n        height: 25px;\n    }\n\n    .wave-path {\n        fill: #3da8ff;\n        animation: move-wave 5s linear infinite;\n    }\n\n    @keyframes move-wave {\n        0% { transform: translateX(0); }\n        50% { transform: translateX(-25%); }\n        100% { transform: translateX(0); }\n    }\n\n    /* VALOR CENTRAL */\n    .value-container {\n        position: absolute;\n        top: 50%;\n        left: 50%;\n        transform: translate(-50%, -50%);\n        text-align: center;\n        z-index: 10;\n        color: #ffffff;\n        pointer-events: none;\n        display: flex;\n        align-items: baseline;\n        justify-content: center;\n    }\n\n    .value {\n        font-size: clamp(36px, 4.2vw, 50px);\n        font-weight: bold;\n        font-family: sans-serif;\n        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);\n    }\n\n    .unit {\n        font-size: clamp(18px, 2.2vw, 26px);\n        font-weight: bold;\n        margin-left: 2px;\n        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);\n    }\n\n    /* STATUS */\n    .status {\n        font-size: clamp(13px, 1.4vw, 16px);\n        text-align: center;\n        font-weight: bold;\n        margin-top: 2px;\n    }\n\n    /* INSIGHT */\n    .insight {\n        text-align: center;\n        font-size: clamp(10px, 1.1vw, 13px);\n        color: #A9B4C2;\n        line-height: 1.3;\n        margin-top: 2px;\n    }\n</style>",
+        "storeOutMessages": true,
+        "passthru": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 560,
+        "y": 360,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "503887ab20c993a4",
+        "type": "function",
+        "z": "ce1e45cbf51fc423",
+        "name": "function 1",
+        "func": "// GERA APENAS UM VALOR ENTRE 0 E 100\nlet nivel = Math.floor(Math.random() * 101);\n\n// Envia o valor puro. O Template se vira com o resto!\nmsg.payload = nivel;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 320,
+        "y": 360,
+        "wires": [
+            [
+                "864e0f5927906959"
+            ]
+        ]
+    },
+    {
+        "id": "e9890dd52f240818",
+        "type": "inject",
+        "z": "ce1e45cbf51fc423",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "5",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 110,
+        "y": 360,
+        "wires": [
+            [
+                "503887ab20c993a4"
+            ]
+        ]
+    },
+    {
+        "id": "50acea4213361356",
+        "type": "function",
+        "z": "ce1e45cbf51fc423",
+        "name": "function 2",
+        "func": "// ========================================\n// 1. SUA LÓGICA DE DADOS (Mantida)\n// ========================================\nlet nivelAtual = context.get('nivelAtual') || 82;\nnivelAtual += (Math.random() * 2) - 2.5;\n\nif (nivelAtual > 100) nivelAtual = 100;\nif (nivelAtual < 0) nivelAtual = 0;\ncontext.set('nivelAtual', nivelAtual);\n\n// Payload com o número puro para o gráfico acumular o histórico\nmsg.payload = parseFloat(nivelAtual.toFixed(1));\nmsg.topic = \"Nível da Água (%)\";\n\n// ========================================\n// 2. CONFIGURAÇÃO DIRETA DO ECHARTS (msg.ui_update)\n// ========================================\nmsg.ui_update = {\n    chartOptions: {\n        color: ['#3da8ff'],\n        \n        // 🛠️ SOLUÇÃO: Cria um espaçamento na base do gráfico para a legenda não cobrir o eixo X\n        grid: {\n            top: 20,       // Margem superior interna\n            left: 40,      // Margem esquerda para os números do eixo Y\n            right: 20,     // Margem direita\n            bottom: 60     // Espaço generoso na base para o eixo X + Legenda respirarem\n        },\n\n        series: [{\n            name: \"Nível da Água (%)\",\n            type: 'line',\n            smooth: true,\n            symbol: 'circle',\n            symbolSize: 10,\n            areaStyle: {\n                color: {\n                    type: 'linear',\n                    x: 0, y: 0, x2: 0, y2: 1,\n                    colorStops: [\n                        { offset: 0, color: 'rgba(61, 168, 255, 0.25)' },\n                        { offset: 1, color: 'rgba(61, 168, 255, 0.01)' }\n                    ]\n                }\n            },\n            lineStyle: {\n                width: 3\n            }\n        }],\n        \n        legend: {\n            show: true,\n            bottom: 5,                  // Fixa bem na bordinha de baixo do footer\n            selectedMode: false,\n            textStyle: {\n                color: '#A9B4C2',\n                fontFamily: 'sans-serif'\n            }\n        },\n        \n        xAxis: {\n            axisLine: { show: false },\n            splitLine: { show: false },\n            axisLabel: {\n                color: '#A9B4C2',\n                margin: 12              // Afasta o texto das horas um pouco da linha do eixo\n            }\n        },\n        yAxis: {\n            min: 0,\n            max: 100,\n            splitLine: {\n                lineStyle: {\n                    color: 'rgba(255, 255, 255, 0.05)'\n                }\n            },\n            axisLabel: {\n                color: '#A9B4C2'\n            }\n        }\n    }\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 320,
+        "y": 520,
+        "wires": [
+            [
+                "922dd7a0072b8a3c"
+            ]
+        ]
+    },
+    {
+        "id": "e93c34bf84dd9140",
+        "type": "inject",
+        "z": "ce1e45cbf51fc423",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "10",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 90,
+        "y": 520,
+        "wires": [
+            [
+                "50acea4213361356"
+            ]
+        ]
+    },
+    {
+        "id": "0d4ec2cc80c189ff",
+        "type": "inject",
+        "z": "ce1e45cbf51fc423",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "5",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 790,
+        "y": 420,
+        "wires": [
+            [
+                "542d237b516840b8"
+            ]
+        ]
+    },
+    {
+        "id": "542d237b516840b8",
+        "type": "function",
+        "z": "ce1e45cbf51fc423",
+        "name": "function 3",
+        "func": "// GERA APENAS UM VALOR ENTRE 0 E 100\nlet nivel = Math.floor(Math.random() * 101);\n\n// Envia o valor puro. O Template se vira com o resto!\nmsg.payload = nivel;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 980,
+        "y": 420,
+        "wires": [
+            [
+                "eec55726d41a2347"
+            ]
+        ]
+    },
+    {
+        "id": "e85fa4e2968c8901",
+        "type": "inject",
+        "z": "ce1e45cbf51fc423",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "10",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 90,
+        "y": 680,
+        "wires": [
+            [
+                "3a7cd451a75a9686"
+            ]
+        ]
+    },
+    {
+        "id": "3a7cd451a75a9686",
+        "type": "function",
+        "z": "ce1e45cbf51fc423",
+        "name": "function 4",
+        "func": "// ========================================\n// 1. LÓGICA DE DADOS (Número Puro para o Histórico)\n// ========================================\nlet turbidezAtual = context.get('turbidezAtual') || 50;\nturbidezAtual += (Math.random() * 4) - 1.8;\n\nif (turbidezAtual > 100) turbidezAtual = 100;\nif (turbidezAtual < 0) turbidezAtual = 0;\ncontext.set('turbidezAtual', turbidezAtual);\n\n// Payload puro para o gráfico acumular o histórico\nmsg.payload = parseFloat(turbidezAtual.toFixed(1));\nmsg.topic = \"Turbidez (NTU)\";\n\n// ========================================\n// 2. CONFIGURAÇÃO DIRETA DO ECHARTS (msg.ui_update)\n// ========================================\nmsg.ui_update = {\n    chartOptions: {\n        // Define a cor principal da linha (Laranja)\n        color: ['#FF7A00'],\n        \n        // Configuração da Linha e da Sombra (Series no eCharts)\n        series: [{\n            name: \"Turbidez (NTU)\",\n            type: 'line',\n            smooth: true,               // CURVA SUAVE (Igual ao tension do Chart.js)\n            symbol: 'circle',           // Força as bolinhas aparecerem\n            symbolSize: 10,             // Tamanho das bolinhas fixas na linha\n            \n            // Ativa e estiliza a sombra/área preenchida abaixo da linha\n            areaStyle: {\n                color: {\n                    type: 'linear',\n                    x: 0, y: 0, x2: 0, y2: 1,\n                    colorStops: [\n                        { offset: 0, color: 'rgba(255, 122, 0, 0.25)' }, // Laranja mais visível no topo\n                        { offset: 1, color: 'rgba(255, 122, 0, 0.01)' }  // Some suavemente perto do zero\n                    ]\n                }\n            },\n            lineStyle: {\n                width: 3                // Espessura robusta da linha principal\n            }\n        }],\n        \n        // LEGENDA NO FOOTER E TRAVADA\n        legend: {\n            show: true,\n            bottom: 5,                  // Coloca a legenda lá no rodapé (Footer)\n            selectedMode: false,        // DESATIVA O CLIQUE (Clicar não faz a linha sumir!)\n            textStyle: {\n                color: '#A9B4C2',\n                fontFamily: 'sans-serif'\n            }\n        },\n        \n        // AJUSTE DOS EIXOS (Igual às imagens de referência)\n        xAxis: {\n            \n            axisLine: { show: false },  // Limpa a linha do eixo X\n            splitLine: { show: false }  // Remove grades verticais\n        },\n        yAxis: {\n            min: 0,\n            max: 100,\n            splitLine: {\n                lineStyle: {\n                    color: 'rgba(255, 255, 255, 0.05)' // Linhas horizontais bem discretas\n                }\n            },\n            axisLabel: {\n                color: '#A9B4C2',\n                margin: 12  \n            }\n        }\n    }\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 300,
+        "y": 680,
+        "wires": [
+            [
+                "e4f7e5879ac68341"
+            ]
+        ]
+    }
+]
