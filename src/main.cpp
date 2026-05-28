@@ -1,11 +1,19 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <PubSubClient.h>
 
 // =========================================
 // CONFIGURAÇÕES DO WIFI
 // =========================================
-const char* WIFI_SSID = "uaifai-tiradentes";
-const char* WIFI_PASSWORD = "bemvindoaocesar";
+const char* WIFI_SSID = "GHEYSON";
+const char* WIFI_PASSWORD = "22OXEmm19";
+
+// =========================================
+// CONFIGURAÇÕES DO MQTT
+// =========================================
+const char* MQTT_BROKER = "172.26.66.22";
+const uint16_t MQTT_PORT = 1883;
+const char* MQTT_TOPIC = "cisterna/status";
 
 // =========================================
 // PINOS DO SENSOR ULTRASSÔNICO
@@ -32,6 +40,12 @@ const int TURBIDEZ_LIMPA = 30;
 const int TURBIDEZ_ATENCAO = 60;
 
 // =========================================
+// OBJETOS DE REDE
+// =========================================
+WiFiClient espClient;
+PubSubClient mqttClient(espClient);
+
+// =========================================
 // FUNÇÕES DO LED RGB
 // =========================================
 void apagarTodas() {
@@ -56,7 +70,7 @@ void acenderAzul() {
 }
 
 // =========================================
-// CONECTAR NO WIFI
+// CONECTAR AO WIFI
 // =========================================
 void conectarWiFi() {
   Serial.println();
@@ -64,9 +78,9 @@ void conectarWiFi() {
   Serial.println("Conectando ao Wi-Fi...");
   Serial.println("====================================");
 
+  WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-  // Enquanto não conectar
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -76,8 +90,29 @@ void conectarWiFi() {
   Serial.println("Wi-Fi conectado com sucesso!");
   Serial.print("IP do ESP32: ");
   Serial.println(WiFi.localIP());
-
   Serial.println("====================================");
+}
+
+// =========================================
+// CONECTAR AO MQTT
+// =========================================
+void conectarMQTT() {
+  while (!mqttClient.connected()) {
+    Serial.print("Conectando ao MQTT...");
+
+    // Cliente simples com ID único
+    String clientId = "ESP32-CISTERNA-";
+    clientId += String((uint32_t)ESP.getEfuseMac(), HEX);
+
+    if (mqttClient.connect(clientId.c_str())) {
+      Serial.println(" conectado!");
+    } else {
+      Serial.print(" falhou, estado=");
+      Serial.print(mqttClient.state());
+      Serial.println(" tentando novamente em 2s");
+      delay(2000);
+    }
+  }
 }
 
 // =========================================
@@ -93,14 +128,11 @@ float medirDistancia() {
 
   long duracao = pulseIn(PINO_ECHO, HIGH, 30000);
 
-  // Se não houver leitura
   if (duracao == 0) {
     return -1;
   }
 
-  // Fórmula da distância em cm
   float distancia = (duracao * 0.0343) / 2.0;
-
   return distancia;
 }
 
@@ -109,10 +141,7 @@ float medirDistancia() {
 // =========================================
 int lerTurbidez() {
   int valorPot = analogRead(PINO_POT);
-
-  // Converte de 0–4095 para 0–100
   int turbidez = map(valorPot, 0, 4095, 0, 100);
-
   return turbidez;
 }
 
@@ -134,8 +163,32 @@ String obterStatusAgua(int turbidez) {
   return "AGUA TURVA / LIMPEZA NECESSARIA";
 }
 
+// =========================================
+// PUBLICA OS DADOS NO MQTT
+// =========================================
+void publicarMQTT(float distancia, int turbidez, const String& statusAgua) {
+  char payload[200];
+
+  // Se a leitura do ultrassônico falhar, envia -1
+  snprintf(
+    payload,
+    sizeof(payload),
+    "{\"distancia_cm\":%.2f,\"turbidez\":%d,\"status\":\"%s\"}",
+    distancia,
+    turbidez,
+    statusAgua.c_str()
+  );
+
+  mqttClient.publish(MQTT_TOPIC, payload);
+
+  Serial.print("MQTT enviado em ");
+  Serial.print(MQTT_TOPIC);
+  Serial.print(": ");
+  Serial.println(payload);
+}
+
 void setup() {
-  // Inicializa Serial
+  // Inicializa serial
   Serial.begin(9600);
 
   // Configura ultrassônico
@@ -154,9 +207,18 @@ void setup() {
 
   // Conecta no Wi-Fi
   conectarWiFi();
+
+  // Configura broker MQTT
+  mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
 }
 
 void loop() {
+  // Garante que o MQTT esteja conectado
+  if (!mqttClient.connected()) {
+    conectarMQTT();
+  }
+  mqttClient.loop();
+
   // =========================================
   // MEDIÇÃO DE DISTÂNCIA
   // =========================================
@@ -179,12 +241,17 @@ void loop() {
   Serial.println(turbidez);
 
   // =========================================
-  // DEFINE STATUS DA ÁGUA
+  // STATUS DA ÁGUA
   // =========================================
   String statusAgua = obterStatusAgua(turbidez);
 
   Serial.print("Status: ");
   Serial.println(statusAgua);
+
+  // =========================================
+  // PUBLICA NO MQTT
+  // =========================================
+  publicarMQTT(distancia, turbidez, statusAgua);
 
   Serial.println("------------------------------------");
 
