@@ -38,6 +38,33 @@ WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
 // =========================================
+// TELEMETRIA
+// =========================================
+struct Amostra {
+  int id;
+  unsigned long timestamp;
+
+  float nivel_cm;
+  int nivel_percentual;
+
+  int turbidez_simulada;
+
+  String status;
+
+  int buffer_index;
+  int buffer_ocupacao;
+};
+
+// =========================================
+// TAMANHO DOS TESTES
+// ALTERAR PARA:
+// 100
+// 5000
+// 20000
+// =========================================
+#define TAM_BUFFER 100
+
+// =========================================
 // CONECTAR AO WIFI
 // =========================================
 void conectarWiFi() {
