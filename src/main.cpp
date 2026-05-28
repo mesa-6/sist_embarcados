@@ -11,7 +11,7 @@ const char* WIFI_PASSWORD = "22OXEmm19";
 // =========================================
 // CONFIGURAÇÕES DO MQTT
 // =========================================
-const char* MQTT_BROKER = "172.26.66.22";
+const char* MQTT_BROKER = "10.0.0.155";
 const uint16_t MQTT_PORT = 1883;
 const char* MQTT_TOPIC = "cisterna/status";
 
@@ -22,52 +22,20 @@ const int PINO_TRIG = 4;
 const int PINO_ECHO = 2;
 
 // =========================================
-// PINO DO POTENCIÔMETRO
+// PINO DO SENSOR DE TURBIDEZ
 // =========================================
-const int PINO_POT = 32;
+const int PINO_TURBIDEZ = 32;
 
 // =========================================
-// PINOS DO LED RGB
+// ALTURA ÚTIL DA CISTERNA
 // =========================================
-const int PINO_BLUE = 21;
-const int PINO_GREEN = 22;
-const int PINO_RED = 23;
-
-// =========================================
-// LIMITES DE TURBIDEZ
-// =========================================
-const int TURBIDEZ_LIMPA = 30;
-const int TURBIDEZ_ATENCAO = 60;
+const float ALTURA_UTIL_CISTERNA_CM = 100.0;
 
 // =========================================
 // OBJETOS DE REDE
 // =========================================
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
-
-// =========================================
-// FUNÇÕES DO LED RGB
-// =========================================
-void apagarTodas() {
-  digitalWrite(PINO_RED, LOW);
-  digitalWrite(PINO_GREEN, LOW);
-  digitalWrite(PINO_BLUE, LOW);
-}
-
-void acenderVermelho() {
-  apagarTodas();
-  digitalWrite(PINO_RED, HIGH);
-}
-
-void acenderVerde() {
-  apagarTodas();
-  digitalWrite(PINO_GREEN, HIGH);
-}
-
-void acenderAzul() {
-  apagarTodas();
-  digitalWrite(PINO_BLUE, HIGH);
-}
 
 // =========================================
 // CONECTAR AO WIFI
@@ -79,6 +47,7 @@ void conectarWiFi() {
   Serial.println("====================================");
 
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   while (WiFi.status() != WL_CONNECTED) {
@@ -100,7 +69,6 @@ void conectarMQTT() {
   while (!mqttClient.connected()) {
     Serial.print("Conectando ao MQTT...");
 
-    // Cliente simples com ID único
     String clientId = "ESP32-CISTERNA-";
     clientId += String((uint32_t)ESP.getEfuseMac(), HEX);
 
@@ -117,66 +85,106 @@ void conectarMQTT() {
 
 // =========================================
 // LEITURA DO SENSOR ULTRASSÔNICO
+// COM MÉDIA DE 10 LEITURAS
 // =========================================
 float medirDistancia() {
-  digitalWrite(PINO_TRIG, LOW);
-  delayMicroseconds(2);
 
-  digitalWrite(PINO_TRIG, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(PINO_TRIG, LOW);
+  float somaDistancias = 0;
+  int leiturasValidas = 0;
 
-  long duracao = pulseIn(PINO_ECHO, HIGH, 30000);
+  // Faz 10 leituras
+  for (int i = 0; i < 10; i++) {
 
-  if (duracao == 0) {
+    // Disparo do TRIG
+    digitalWrite(PINO_TRIG, LOW);
+    delayMicroseconds(2);
+
+    digitalWrite(PINO_TRIG, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(PINO_TRIG, LOW);
+
+    // Mede o tempo do ECHO
+    long duracao = pulseIn(PINO_ECHO, HIGH, 30000);
+
+    // Ignora leituras inválidas
+    if (duracao > 0) {
+
+      float distancia = (duracao * 0.0343) / 2.0;
+
+      somaDistancias += distancia;
+      leiturasValidas++;
+    }
+
+    delay(5);
+  }
+
+  // Se nenhuma leitura válida
+  if (leiturasValidas == 0) {
     return -1;
   }
 
-  float distancia = (duracao * 0.0343) / 2.0;
-  return distancia;
+  // Retorna média das leituras válidas
+  return somaDistancias / leiturasValidas;
 }
 
 // =========================================
-// LEITURA DA TURBIDEZ SIMULADA
+// LEITURA DA TURBIDEZ COM MÉDIA DE 10 AMOSTRAS
 // =========================================
 int lerTurbidez() {
-  int valorPot = analogRead(PINO_POT);
-  int turbidez = map(valorPot, 0, 4095, 0, 100);
+
+  long somaLeituras = 0;
+
+  // Faz 10 leituras do sensor
+  for (int i = 0; i < 10; i++) {
+    somaLeituras += analogRead(PINO_TURBIDEZ);
+
+    // Pequeno delay para estabilizar leitura
+    delay(5);
+  }
+
+  // Calcula média das 10 leituras
+  int valorBrutoMedio = somaLeituras / 10;
+
+  // Converte para percentual de turbidez
+  // 4095 = água limpa (0%)
+  // 0 = água muito suja (100%)
+  int turbidez = map(valorBrutoMedio, 0, 4095, 100, 0);
+
+  // Garante limites válidos
+  turbidez = constrain(turbidez, 0, 100);
+
   return turbidez;
 }
 
 // =========================================
-// DEFINE O STATUS DA ÁGUA
+// CONVERTE DISTÂNCIA EM NÍVEL PERCENTUAL
 // =========================================
-String obterStatusAgua(int turbidez) {
-  if (turbidez <= TURBIDEZ_LIMPA) {
-    acenderVerde();
-    return "AGUA LIMPA";
+float calcularNivelPercentual(float distanciaCm) {
+  if (distanciaCm < 0) {
+    return -1;
   }
 
-  if (turbidez <= TURBIDEZ_ATENCAO) {
-    acenderAzul();
-    return "ATENCAO";
-  }
+  float nivel = ((ALTURA_UTIL_CISTERNA_CM - distanciaCm) / ALTURA_UTIL_CISTERNA_CM) * 100.0;
 
-  acenderVermelho();
-  return "AGUA TURVA / LIMPEZA NECESSARIA";
+  if (nivel < 0) nivel = 0;
+  if (nivel > 100) nivel = 100;
+
+  return nivel;
 }
 
 // =========================================
 // PUBLICA OS DADOS NO MQTT
 // =========================================
-void publicarMQTT(float distancia, int turbidez, const String& statusAgua) {
-  char payload[200];
+void publicarMQTT(float distancia, float nivelPercentual, int turbidez) {
+  char payload[220];
 
-  // Se a leitura do ultrassônico falhar, envia -1
   snprintf(
     payload,
     sizeof(payload),
-    "{\"distancia_cm\":%.2f,\"turbidez\":%d,\"status\":\"%s\"}",
+    "{\"distancia_cm\":%.2f,\"nivel_percentual\":%.2f,\"turbidez\":%d}",
     distancia,
-    turbidez,
-    statusAgua.c_str()
+    nivelPercentual,
+    turbidez
   );
 
   mqttClient.publish(MQTT_TOPIC, payload);
@@ -195,29 +203,44 @@ void setup() {
   pinMode(PINO_TRIG, OUTPUT);
   pinMode(PINO_ECHO, INPUT);
 
-  // Configura potenciômetro
-  pinMode(PINO_POT, INPUT);
+  // Configura sensor de turbidez
+  pinMode(PINO_TURBIDEZ, INPUT);
 
-  // Configura LED RGB
-  pinMode(PINO_RED, OUTPUT);
-  pinMode(PINO_GREEN, OUTPUT);
-  pinMode(PINO_BLUE, OUTPUT);
+  // Ajustes de leitura analógica no ESP32
+  analogReadResolution(12);
+  analogSetPinAttenuation(PINO_TURBIDEZ, ADC_11db);
 
-  apagarTodas();
-
-  // Conecta no Wi-Fi
-  conectarWiFi();
+  // =====================================================
+  // WI-FI / MQTT TEMPORARIAMENTE DESATIVADOS
+  // =====================================================
+  // Conecta ao Wi-Fi
+  // conectarWiFi();
 
   // Configura broker MQTT
-  mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
+  // mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
+  // mqttClient.setBufferSize(256);
+  // mqttClient.setKeepAlive(30);
+
+  Serial.println();
+  Serial.println("Sistema iniciado.");
+  Serial.println("Wi-Fi/MQTT mantidos no codigo, mas desativados por ora.");
+  Serial.println("------------------------------------");
 }
 
 void loop() {
-  // Garante que o MQTT esteja conectado
-  if (!mqttClient.connected()) {
-    conectarMQTT();
-  }
-  mqttClient.loop();
+  // =====================================================
+  // WI-FI / MQTT TEMPORARIAMENTE DESATIVADOS
+  // =====================================================
+  // Garante conexão Wi-Fi
+  // if (WiFi.status() != WL_CONNECTED) {
+  //   conectarWiFi();
+  // }
+
+  // Garante conexão MQTT
+  // if (!mqttClient.connected()) {
+  //   conectarMQTT();
+  // }
+  // mqttClient.loop();
 
   // =========================================
   // MEDIÇÃO DE DISTÂNCIA
@@ -225,7 +248,7 @@ void loop() {
   float distancia = medirDistancia();
 
   if (distancia >= 0) {
-    Serial.print("Distancia: ");
+    Serial.print("Distancia ate a agua: ");
     Serial.print(distancia);
     Serial.println(" cm");
   } else {
@@ -233,27 +256,44 @@ void loop() {
   }
 
   // =========================================
+  // CÁLCULO DO NÍVEL DA CISTERNA
+  // =========================================
+  float nivelPercentual = calcularNivelPercentual(distancia);
+
+  if (nivelPercentual >= 0) {
+    Serial.print("Nivel da cisterna: ");
+    Serial.print(nivelPercentual);
+    Serial.println(" %");
+  } else {
+    Serial.println("Nao foi possivel calcular o nivel");
+  }
+
+  // =========================================
   // LEITURA DA TURBIDEZ
   // =========================================
   int turbidez = lerTurbidez();
 
-  Serial.print("Turbidez simulada: ");
-  Serial.println(turbidez);
+  Serial.print("Turbidez (media de 10 leituras): ");
+  Serial.print(turbidez);
+  Serial.println("%");
 
   // =========================================
-  // STATUS DA ÁGUA
+  // STATUS SIMPLES DA ÁGUA
   // =========================================
-  String statusAgua = obterStatusAgua(turbidez);
+  if (turbidez <= 30) {
+    Serial.println("Status: AGUA LIMPA");
+  } else if (turbidez <= 60) {
+    Serial.println("Status: ATENCAO");
+  } else {
+    Serial.println("Status: AGUA TURVA / LIMPEZA NECESSARIA");
+  }
 
-  Serial.print("Status: ");
-  Serial.println(statusAgua);
-
-  // =========================================
-  // PUBLICA NO MQTT
-  // =========================================
-  publicarMQTT(distancia, turbidez, statusAgua);
+  // =====================================================
+  // PUBLICAÇÃO MQTT TEMPORARIAMENTE DESATIVADA
+  // =====================================================
+  // publicarMQTT(distancia, nivelPercentual, turbidez);
 
   Serial.println("------------------------------------");
 
-  delay(1000);
+  delay(3000);
 }
