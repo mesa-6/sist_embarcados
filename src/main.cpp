@@ -5,7 +5,7 @@
 // =========================================
 // CONFIGURAÇÕES GERAIS
 // =========================================
-const bool MQTT_ATIVO = true; // depois você muda para true
+const bool MQTT_ATIVO = true; // depois muda para true
 
 // =========================================
 // CONFIGURAÇÕES DO WIFI
@@ -31,10 +31,21 @@ const int PINO_ECHO = 2;
 // =========================================
 const int PINO_TURBIDEZ = 32;
 
-// =========================================l
+// =========================================
 // ALTURA ÚTIL DA CISTERNA
 // =========================================
 const float ALTURA_UTIL_CISTERNA_CM = 100.0;
+
+// =========================================
+// CONFIGURAÇÕES DE ALERTA DE TURBIDEZ
+// =========================================
+const int LIMITE_TURBIDEZ_CRITICA = 60; // Acima disso é considerado crítico
+const unsigned long TEMPO_TOLERANCIA_MS = 60000; // Tempo em milissegundos (ex: 60000 = 1 minuto)
+const unsigned long INTERVALO_REENVIO_MS = 3600000; // Intervalo em milissegundos (ex: 3600000 = 1 hora)
+
+unsigned long inicioTurbidezAlta = 0;
+bool alertaEmailEnviado = false;
+unsigned long ultimoAlertaEnviado = 0;
 
 // =========================================
 // OBJETOS DE REDE
@@ -298,6 +309,41 @@ void loop() {
     Serial.println("Status: ATENCAO");
   } else {
     Serial.println("Status: AGUA TURVA / LIMPEZA NECESSARIA");
+  }
+
+// =========================================
+  // LÓGICA DE ALERTA PROLONGADO E RECORRENTE
+  // =========================================
+  if (turbidez > LIMITE_TURBIDEZ_CRITICA) {
+    
+    // Se a turbidez acabou de ficar alta, marca o tempo inicial
+    if (inicioTurbidezAlta == 0) {
+      inicioTurbidezAlta = millis();
+      Serial.println("Alerta: Turbidez alta detectada. Iniciando contagem de tempo...");
+    } 
+    // Se já passou do tempo de tolerância inicial
+    else if (millis() - inicioTurbidezAlta >= TEMPO_TOLERANCIA_MS) {
+      
+      // Verifica se é o primeiro envio OU se já passou o tempo de intervalo desde o último envio
+      if (ultimoAlertaEnviado == 0 || (millis() - ultimoAlertaEnviado >= INTERVALO_REENVIO_MS)) {
+        Serial.println("Alerta CRÍTICO: Água continua turva! Solicitando envio de e-mail...");
+        
+        // Publica no MQTT para o Node-RED enviar o e-mail
+        if (MQTT_ATIVO && mqttClient.connected()) {
+          mqttClient.publish("cisterna/alerta", "{\"alerta\":\"turbidez_prolongada\", \"mensagem\":\"A água permanece turva. Limpeza necessária!\"}");
+        }
+        
+        // Registra o momento em que este alerta foi enviado para iniciar o "cooldown"
+        ultimoAlertaEnviado = millis(); 
+      }
+    }
+  } else {
+    // Se a água voltar a ficar limpa, zera tudo imediatamente
+    if (inicioTurbidezAlta != 0 || ultimoAlertaEnviado != 0) {
+      Serial.println("Resetando alertas de turbidez.");
+      inicioTurbidezAlta = 0;
+      ultimoAlertaEnviado = 0;
+    }
   }
 
   // Publicação MQTT só quando o broker estiver pronto
