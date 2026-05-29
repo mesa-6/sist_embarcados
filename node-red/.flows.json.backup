@@ -110,8 +110,8 @@
         ],
         "order": 1,
         "className": "text",
-        "visible": "true",
-        "disabled": "false"
+        "visible": true,
+        "disabled": false
     },
     {
         "id": "06d9654aeca5098a",
@@ -196,11 +196,16 @@
         "rap": true,
         "rh": 0,
         "inputs": 0,
-        "x": 490,
+        "x": 170,
         "y": 200,
         "wires": [
             [
-                "a6ee750f53dfc493"
+                "a6ee750f53dfc493",
+                "503887ab20c993a4",
+                "50acea4213361356",
+                "542d237b516840b8",
+                "3a7cd451a75a9686",
+                "88f87c611a264f7c"
             ]
         ]
     },
@@ -213,7 +218,8 @@
         "tosidebar": true,
         "console": false,
         "tostatus": false,
-        "complete": "false",
+        "complete": "payload",
+        "targetType": "msg",
         "statusVal": "",
         "statusType": "auto",
         "x": 700,
@@ -276,8 +282,8 @@
         "height": "6",
         "className": "meu-grafico-water-dark",
         "interpolation": "linear",
-        "x": 540,
-        "y": 520,
+        "x": 580,
+        "y": 340,
         "wires": [
             []
         ]
@@ -338,8 +344,8 @@
         "height": "6",
         "className": "",
         "interpolation": "linear",
-        "x": 550,
-        "y": 680,
+        "x": 590,
+        "y": 420,
         "wires": [
             []
         ]
@@ -362,8 +368,8 @@
         "resendOnRefresh": true,
         "templateScope": "local",
         "className": "",
-        "x": 1160,
-        "y": 360,
+        "x": 560,
+        "y": 380,
         "wires": [
             []
         ]
@@ -386,8 +392,8 @@
         "resendOnRefresh": true,
         "templateScope": "local",
         "className": "",
-        "x": 560,
-        "y": 360,
+        "x": 580,
+        "y": 300,
         "wires": [
             []
         ]
@@ -397,47 +403,18 @@
         "type": "function",
         "z": "ce1e45cbf51fc423",
         "name": "function 1",
-        "func": "// GERA APENAS UM VALOR ENTRE 0 E 100\nlet nivel = Math.floor(Math.random() * 101);\n\n// Envia o valor puro. O Template se vira com o resto!\nmsg.payload = nivel;\n\nreturn msg;",
+        "func": "// Extrai apenas o percentual do objeto vindo do Broker\nlet nivel = msg.payload.nivel_percentual;\n\n// Garante que o valor seja um número e esteja entre 0 e 100\nmsg.payload = Number(nivel).toFixed(1);\n\nreturn msg;",
         "outputs": 1,
         "timeout": 0,
         "noerr": 0,
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 320,
-        "y": 360,
+        "x": 400,
+        "y": 300,
         "wires": [
             [
                 "864e0f5927906959"
-            ]
-        ]
-    },
-    {
-        "id": "e9890dd52f240818",
-        "type": "inject",
-        "z": "ce1e45cbf51fc423",
-        "name": "",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
-        ],
-        "repeat": "5",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 110,
-        "y": 360,
-        "wires": [
-            [
-                "503887ab20c993a4"
             ]
         ]
     },
@@ -453,69 +430,11 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 320,
-        "y": 520,
+        "x": 400,
+        "y": 340,
         "wires": [
             [
                 "922dd7a0072b8a3c"
-            ]
-        ]
-    },
-    {
-        "id": "e93c34bf84dd9140",
-        "type": "inject",
-        "z": "ce1e45cbf51fc423",
-        "name": "",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
-        ],
-        "repeat": "10",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 90,
-        "y": 520,
-        "wires": [
-            [
-                "50acea4213361356"
-            ]
-        ]
-    },
-    {
-        "id": "0d4ec2cc80c189ff",
-        "type": "inject",
-        "z": "ce1e45cbf51fc423",
-        "name": "",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
-        ],
-        "repeat": "5",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 790,
-        "y": 420,
-        "wires": [
-            [
-                "542d237b516840b8"
             ]
         ]
     },
@@ -524,47 +443,18 @@
         "type": "function",
         "z": "ce1e45cbf51fc423",
         "name": "function 3",
-        "func": "// GERA APENAS UM VALOR ENTRE 0 E 100\nlet nivel = Math.floor(Math.random() * 101);\n\n// Envia o valor puro. O Template se vira com o resto!\nmsg.payload = nivel;\n\nreturn msg;",
+        "func": "// Extrai o valor da turbidez do objeto JSON enviado pelo Broker\nlet valorTurbidez = msg.payload.turbidez;\n\n// Garante que o valor enviado para o card seja um número\nmsg.payload = Number(valorTurbidez);\n\nreturn msg;",
         "outputs": 1,
         "timeout": 0,
         "noerr": 0,
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 980,
-        "y": 420,
+        "x": 400,
+        "y": 380,
         "wires": [
             [
                 "eec55726d41a2347"
-            ]
-        ]
-    },
-    {
-        "id": "e85fa4e2968c8901",
-        "type": "inject",
-        "z": "ce1e45cbf51fc423",
-        "name": "",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
-        ],
-        "repeat": "10",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 90,
-        "y": 680,
-        "wires": [
-            [
-                "3a7cd451a75a9686"
             ]
         ]
     },
@@ -580,8 +470,8 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 300,
-        "y": 680,
+        "x": 400,
+        "y": 420,
         "wires": [
             [
                 "e4f7e5879ac68341"
@@ -606,8 +496,8 @@
         "resendOnRefresh": true,
         "templateScope": "local",
         "className": "",
-        "x": 1150,
-        "y": 600,
+        "x": 590,
+        "y": 460,
         "wires": [
             []
         ]
@@ -624,8 +514,8 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 920,
-        "y": 600,
+        "x": 400,
+        "y": 460,
         "wires": [
             [
                 "7849f3f379aa2899"
@@ -633,32 +523,78 @@
         ]
     },
     {
-        "id": "0890529ba2539d65",
-        "type": "inject",
+        "id": "7e586c8f6209d839",
+        "type": "mqtt in",
         "z": "ce1e45cbf51fc423",
         "name": "",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
-        ],
-        "repeat": "10",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 770,
-        "y": 600,
+        "topic": "cisterna/alerta",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "e4ff8e7013b77896",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 210,
+        "y": 100,
         "wires": [
             [
-                "88f87c611a264f7c"
+                "1facaad0665bddf3"
             ]
         ]
+    },
+    {
+        "id": "1facaad0665bddf3",
+        "type": "function",
+        "z": "ce1e45cbf51fc423",
+        "name": "Formatar E-mail",
+        "func": "// Define o assunto do e-mail\nmsg.topic = \"🚨 ALERTA: Cisterna - Água Turva por muito tempo!\";\n\n// Extrai a mensagem que veio do ESP32 para ser o corpo do e-mail\nmsg.payload = msg.payload.mensagem;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 420,
+        "y": 100,
+        "wires": [
+            [
+                "6f8a811aa24867d4",
+                "2b6998ca986ae6a5"
+            ]
+        ]
+    },
+    {
+        "id": "6f8a811aa24867d4",
+        "type": "e-mail",
+        "z": "ce1e45cbf51fc423",
+        "server": "smtp.gmail.com",
+        "port": "465",
+        "authtype": "BASIC",
+        "saslformat": true,
+        "token": "oauth2Response.access_token",
+        "secure": true,
+        "tls": true,
+        "name": "gheysonmelo@hotmail.com",
+        "dname": "",
+        "x": 700,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "2b6998ca986ae6a5",
+        "type": "debug",
+        "z": "ce1e45cbf51fc423",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 640,
+        "y": 140,
+        "wires": []
     }
 ]
