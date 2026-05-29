@@ -3,6 +3,11 @@
 #include <PubSubClient.h>
 
 // =========================================
+// CONFIGURAÇÕES GERAIS
+// =========================================
+const bool MQTT_ATIVO = true; // depois você muda para true
+
+// =========================================
 // CONFIGURAÇÕES DO WIFI
 // =========================================
 const char* WIFI_SSID = "GHEYSON";
@@ -11,7 +16,7 @@ const char* WIFI_PASSWORD = "22OXEmm19";
 // =========================================
 // CONFIGURAÇÕES DO MQTT
 // =========================================
-const char* MQTT_BROKER = "10.0.0.155";
+const char* MQTT_BROKER = "10.0.0.156";
 const uint16_t MQTT_PORT = 1883;
 const char* MQTT_TOPIC = "cisterna/status";
 
@@ -26,7 +31,7 @@ const int PINO_ECHO = 2;
 // =========================================
 const int PINO_TURBIDEZ = 32;
 
-// =========================================
+// =========================================l
 // ALTURA ÚTIL DA CISTERNA
 // =========================================
 const float ALTURA_UTIL_CISTERNA_CM = 100.0;
@@ -119,10 +124,7 @@ float medirDistancia() {
   float somaDistancias = 0;
   int leiturasValidas = 0;
 
-  // Faz 10 leituras
   for (int i = 0; i < 10; i++) {
-
-    // Disparo do TRIG
     digitalWrite(PINO_TRIG, LOW);
     delayMicroseconds(2);
 
@@ -130,14 +132,10 @@ float medirDistancia() {
     delayMicroseconds(10);
     digitalWrite(PINO_TRIG, LOW);
 
-    // Mede o tempo do ECHO
     long duracao = pulseIn(PINO_ECHO, HIGH, 30000);
 
-    // Ignora leituras inválidas
     if (duracao > 0) {
-
       float distancia = (duracao * 0.0343) / 2.0;
-
       somaDistancias += distancia;
       leiturasValidas++;
     }
@@ -145,12 +143,10 @@ float medirDistancia() {
     delay(5);
   }
 
-  // Se nenhuma leitura válida
   if (leiturasValidas == 0) {
     return -1;
   }
 
-  // Retorna média das leituras válidas
   return somaDistancias / leiturasValidas;
 }
 
@@ -158,26 +154,19 @@ float medirDistancia() {
 // LEITURA DA TURBIDEZ COM MÉDIA DE 10 AMOSTRAS
 // =========================================
 int lerTurbidez() {
-
   long somaLeituras = 0;
 
-  // Faz 10 leituras do sensor
   for (int i = 0; i < 10; i++) {
     somaLeituras += analogRead(PINO_TURBIDEZ);
-
-    // Pequeno delay para estabilizar leitura
     delay(5);
   }
 
-  // Calcula média das 10 leituras
   int valorBrutoMedio = somaLeituras / 10;
 
-  // Converte para percentual de turbidez
-  // 4095 = água limpa (0%)
   // 0 = água muito suja (100%)
+  // 4095 = água muito limpa (0%)
   int turbidez = map(valorBrutoMedio, 0, 4095, 100, 0);
 
-  // Garante limites válidos
   turbidez = constrain(turbidez, 0, 100);
 
   return turbidez;
@@ -237,37 +226,33 @@ void setup() {
   analogReadResolution(12);
   analogSetPinAttenuation(PINO_TURBIDEZ, ADC_11db);
 
-  // =====================================================
-  // WI-FI / MQTT TEMPORARIAMENTE DESATIVADOS
-  // =====================================================
-  // Conecta ao Wi-Fi
-  // conectarWiFi();
-
-  // Configura broker MQTT
-  // mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
-  // mqttClient.setBufferSize(256);
-  // mqttClient.setKeepAlive(30);
+  // Conecta ao Wi-Fi apenas se o MQTT estiver ativo
+  if (MQTT_ATIVO) {
+    conectarWiFi();
+    mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
+    mqttClient.setBufferSize(256);
+    mqttClient.setKeepAlive(30);
+  }
 
   Serial.println();
   Serial.println("Sistema iniciado.");
-  Serial.println("Wi-Fi/MQTT mantidos no codigo, mas desativados por ora.");
+  Serial.println("Leitura local dos sensores pronta.");
   Serial.println("------------------------------------");
 }
 
 void loop() {
-  // =====================================================
-  // WI-FI / MQTT TEMPORARIAMENTE DESATIVADOS
-  // =====================================================
-  // Garante conexão Wi-Fi
-  // if (WiFi.status() != WL_CONNECTED) {
-  //   conectarWiFi();
-  // }
+  // Parte de rede só funciona quando ativar MQTT_ATIVO = true
+  if (MQTT_ATIVO) {
+    if (WiFi.status() != WL_CONNECTED) {
+      conectarWiFi();
+    }
 
-  // Garante conexão MQTT
-  // if (!mqttClient.connected()) {
-  //   conectarMQTT();
-  // }
-  // mqttClient.loop();
+    if (!mqttClient.connected()) {
+      conectarMQTT();
+    }
+
+    mqttClient.loop();
+  }
 
   // =========================================
   // MEDIÇÃO DE DISTÂNCIA
@@ -315,12 +300,11 @@ void loop() {
     Serial.println("Status: AGUA TURVA / LIMPEZA NECESSARIA");
   }
 
-  // =====================================================
-  // PUBLICAÇÃO MQTT TEMPORARIAMENTE DESATIVADA
-  // =====================================================
-  // publicarMQTT(distancia, nivelPercentual, turbidez);
+  // Publicação MQTT só quando o broker estiver pronto
+  if (MQTT_ATIVO) {
+    publicarMQTT(distancia, nivelPercentual, turbidez);
+  }
 
   Serial.println("------------------------------------");
-
   delay(3000);
 }
