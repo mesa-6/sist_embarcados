@@ -3,6 +3,25 @@
 #include <PubSubClient.h>
 
 // =========================================
+// TAMANHO DOS TESTES
+// ALTERAR PARA:
+// 100
+// 5000
+// 20000
+// =========================================
+#define TAM_BUFFER 100
+
+// =========================================
+// MODOS DE EXECUÇÃO
+// =========================================
+#define MODO_IOT 0
+#define MODO_ON 1
+#define MODO_O1 2
+#define MODO_BENCHMARK 3
+
+#define MODO_EXECUCAO MODO_IOT
+
+// =========================================
 // CONFIGURAÇÕES GERAIS
 // =========================================
 const bool MQTT_ATIVO = true; // depois muda para true
@@ -19,6 +38,7 @@ const char* WIFI_PASSWORD = "22OXEmm19";
 const char* MQTT_BROKER = "10.0.0.156";
 const uint16_t MQTT_PORT = 1883;
 const char* MQTT_TOPIC = "cisterna/status";
+const char* MQTT_TOPIC_BENCHMARK = "cisterna/benchmark";
 
 // =========================================
 // PINOS DO SENSOR ULTRASSÔNICO
@@ -48,6 +68,31 @@ bool alertaEmailEnviado = false;
 unsigned long ultimoAlertaEnviado = 0;
 
 // =========================================
+// CONTROLE DO BENCHMARK
+// =========================================
+unsigned long ultimoConsumo = 0;
+bool benchmarkExecutado = false;
+
+// =========================================
+// TELEMETRIA
+// =========================================
+struct Amostra {
+
+  int id;
+
+  unsigned long timestamp;
+
+  float nivel_cm;
+
+  int nivel_percentual;
+
+  int turbidez_simulada;
+
+  int buffer_index;
+
+  int buffer_ocupacao;
+};
+// =========================================
 // OBJETOS DE REDE
 // =========================================
 WiFiClient espClient;
@@ -56,29 +101,117 @@ PubSubClient mqttClient(espClient);
 // =========================================
 // TELEMETRIA
 // =========================================
-struct Amostra {
-  int id;
-  unsigned long timestamp;
+int contadorAmostras = 0;
 
-  float nivel_cm;
-  int nivel_percentual;
+Amostra criarAmostra(
+    float distancia,
+    float nivelPercentual,
+    int turbidez
+) {
 
-  int turbidez_simulada;
+  Amostra dado;
 
-  String status;
+  dado.id = contadorAmostras++;
 
-  int buffer_index;
-  int buffer_ocupacao;
+  dado.timestamp = millis();
+
+  dado.nivel_cm = distancia;
+
+  dado.nivel_percentual = (int)nivelPercentual;
+
+  dado.turbidez_simulada = turbidez;
+
+  dado.buffer_index = 0;
+  dado.buffer_ocupacao = 0;
+
+  return dado;
+}
+
+struct EstatisticasBenchmark {
+
+  unsigned long somaLatencias = 0;
+
+  unsigned long totalInsercoes = 0;
+
+  unsigned long maiorLatencia = 0;
+
+} benchmark;
+
+Amostra historicoON[TAM_BUFFER];
+
+int quantidadeON = 0;
+
+void inserirON(Amostra dado) {
+
+  if (quantidadeON < TAM_BUFFER) {
+    historicoON[quantidadeON++] = dado;
+    return;
+  }
+
+  for (int i = 0; i < TAM_BUFFER - 1; i++) {
+    historicoON[i] = historicoON[i + 1];
+  }
+
+  historicoON[TAM_BUFFER - 1] = dado;
+}
+
+class RingBuffer {
+
+private:
+
+  Amostra buffer[TAM_BUFFER];
+
+  int head = 0;
+  int tail = 0;
+  int quantidade = 0;
+
+  unsigned long descartados = 0;
+
+public:
+
+  void inserir(Amostra dado) {
+
+    buffer[head] = dado;
+
+    head = (head + 1) % TAM_BUFFER;
+
+    if (quantidade < TAM_BUFFER) {
+      quantidade++;
+    } else {
+      descartados++;
+      tail = (tail + 1) % TAM_BUFFER;
+    }
+  }
+
+  int getHead() {
+    return head;
+  }
+
+  bool vazio() {
+    return quantidade == 0;
+  }
+
+  unsigned long getDescartados() {
+    return descartados;
+  }
+
+  Amostra remover() {
+
+    Amostra dado = buffer[tail];
+
+    tail = (tail + 1) % TAM_BUFFER;
+
+    quantidade--;
+
+    return dado;
+  }
+
+  int ocupacao() {
+    return quantidade;
+  }
 };
 
-// =========================================
-// TAMANHO DOS TESTES
-// ALTERAR PARA:
-// 100
-// 5000
-// 20000
-// =========================================
-#define TAM_BUFFER 100
+RingBuffer ringBuffer;
 
 // =========================================
 // CONECTAR AO WIFI
@@ -222,6 +355,146 @@ void publicarMQTT(float distancia, float nivelPercentual, int turbidez) {
   Serial.println(payload);
 }
 
+void publicarBenchmark(
+    const char* vertente,
+    unsigned long latenciaMedia,
+    unsigned long latenciaMaxima,
+    uint32_t heapLivre,
+    int ocupacaoBuffer,
+    unsigned long descartados
+) {
+
+  if (!MQTT_ATIVO || !mqttClient.connected()) {
+    return;
+  }
+
+  char payload[256];
+
+  snprintf(
+    payload,
+    sizeof(payload),
+    "{\"vertente\":\"%s\","
+    "\"n\":%d,"
+    "\"latencia_media_us\":%lu,"
+    "\"latencia_maxima_us\":%lu,"
+    "\"heap_livre\":%u,"
+    "\"ocupacao_buffer\":%d,"
+    "\"descartados\":%lu}",
+    vertente,
+    TAM_BUFFER,
+    latenciaMedia,
+    latenciaMaxima,
+    heapLivre,
+    ocupacaoBuffer,
+    descartados
+);
+
+  mqttClient.publish(
+      MQTT_TOPIC_BENCHMARK,
+      payload
+  );
+
+  Serial.println(payload);
+}
+
+void processarON(Amostra dado) {
+
+  unsigned long inicio = micros();
+
+  inserirON(dado);
+
+  unsigned long latencia = micros() - inicio;
+
+  if (latencia > benchmark.maiorLatencia)
+    benchmark.maiorLatencia = latencia;
+
+  benchmark.somaLatencias += latencia;
+  benchmark.totalInsercoes++;
+
+  if (benchmark.totalInsercoes % 100 == 0) {
+
+    unsigned long media =
+        benchmark.somaLatencias /
+        benchmark.totalInsercoes;
+
+    publicarBenchmark(
+        "ON",
+        media,
+        benchmark.maiorLatencia,
+        ESP.getFreeHeap(),
+        quantidadeON,
+        0
+    );
+  }
+
+  if (MQTT_ATIVO) {
+
+    publicarMQTT(
+        dado.nivel_cm,
+        dado.nivel_percentual,
+        dado.turbidez_simulada
+    );
+
+    delay(200);
+  }
+}
+
+void produzirO1(Amostra dado) {
+
+  unsigned long inicio = micros();
+
+  dado.buffer_index = ringBuffer.getHead();
+
+  dado.buffer_ocupacao = ringBuffer.ocupacao();
+
+  ringBuffer.inserir(dado);
+
+  unsigned long latencia = micros() - inicio;
+
+  if (latencia > benchmark.maiorLatencia)
+    benchmark.maiorLatencia = latencia;
+
+  benchmark.somaLatencias += latencia;
+  benchmark.totalInsercoes++;
+
+  if (benchmark.totalInsercoes % 100 == 0) {
+
+    unsigned long media =
+        benchmark.somaLatencias /
+        benchmark.totalInsercoes;
+
+    publicarBenchmark(
+        "O1",
+        media,
+        benchmark.maiorLatencia,
+        ESP.getFreeHeap(),
+        ringBuffer.ocupacao(),
+        ringBuffer.getDescartados()
+    );
+  }
+}
+
+void consumirBuffer() {
+
+  if (ringBuffer.vazio()) {
+    return;
+  }
+
+  Amostra dado =
+      ringBuffer.remover();
+
+  if (MQTT_ATIVO) {
+
+    publicarMQTT(
+        dado.nivel_cm,
+        dado.nivel_percentual,
+        dado.turbidez_simulada
+    );
+
+    delay(200);
+  }
+}
+
 void setup() {
   // Inicializa serial
   Serial.begin(9600);
@@ -346,10 +619,145 @@ void loop() {
     }
   }
 
-  // Publicação MQTT só quando o broker estiver pronto
+// Publicação MQTT só quando o broker estiver pronto
+
+Amostra dado =
+    criarAmostra(
+        distancia,
+        nivelPercentual,
+        turbidez
+    );
+
+#if MODO_EXECUCAO == MODO_IOT
+Serial.println("Modo IoT");
+#elif MODO_EXECUCAO == MODO_ON
+Serial.println("Modo O(n)");
+#elif MODO_EXECUCAO == MODO_O1
+Serial.println("Modo O(1)");
+#elif MODO_EXECUCAO == MODO_BENCHMARK
+Serial.println("Modo Benchmark");
+#endif
+    
+#if MODO_EXECUCAO == MODO_IOT
+
   if (MQTT_ATIVO) {
-    publicarMQTT(distancia, nivelPercentual, turbidez);
+
+    publicarMQTT(
+        distancia,
+        nivelPercentual,
+        turbidez
+    );
   }
+
+#elif MODO_EXECUCAO == MODO_ON
+
+  processarON(dado);
+
+#elif MODO_EXECUCAO == MODO_O1
+
+  produzirO1(dado);
+
+if (millis() - ultimoConsumo >= 1000) {
+
+    consumirBuffer();
+
+    ultimoConsumo = millis();
+}
+
+#elif MODO_EXECUCAO == MODO_BENCHMARK
+
+if (benchmarkExecutado)
+    return;
+
+  benchmarkExecutado = true;
+
+benchmark.somaLatencias = 0;
+benchmark.maiorLatencia = 0;
+
+for (int i = 0; i < TAM_BUFFER; i++) {
+
+    Amostra dado;
+
+    dado.id = i;
+
+    unsigned long inicio = micros();
+
+    ringBuffer.inserir(dado);
+
+    unsigned long latencia = micros() - inicio;
+
+    benchmark.somaLatencias += latencia;
+
+    if (latencia > benchmark.maiorLatencia)
+        benchmark.maiorLatencia = latencia;
+}
+
+unsigned long media =
+    benchmark.somaLatencias / TAM_BUFFER;
+
+Serial.printf(
+    "N=%d | Media=%lu us | Max=%lu us | Heap=%u\n",
+    TAM_BUFFER,
+    media,
+    benchmark.maiorLatencia,
+    ESP.getFreeHeap()
+);
+
+publicarBenchmark(
+    "O1",
+    media,
+    benchmark.maiorLatencia,
+    ESP.getFreeHeap(),
+    ringBuffer.ocupacao(),
+    ringBuffer.getDescartados()
+);
+
+benchmark.somaLatencias = 0;
+benchmark.maiorLatencia = 0;
+
+for (int i = 0; i < TAM_BUFFER; i++) {
+
+    Amostra dado;
+    dado.id = i;
+
+    unsigned long inicio = micros();
+
+    inserirON(dado);
+
+    unsigned long latencia = micros() - inicio;
+
+
+    benchmark.somaLatencias += latencia;
+
+    if (latencia > benchmark.maiorLatencia)
+        benchmark.maiorLatencia = latencia;
+
+    delay(200);
+}
+
+unsigned long mediaON =
+    benchmark.somaLatencias / TAM_BUFFER;
+
+Serial.printf(
+    "[ON] N=%d | Media=%lu us | Max=%lu us | Heap=%u\n",
+    TAM_BUFFER,
+    mediaON,
+    benchmark.maiorLatencia,
+    ESP.getFreeHeap()
+);
+
+publicarBenchmark(
+    "ON",
+    mediaON,
+    benchmark.maiorLatencia,
+    ESP.getFreeHeap(),
+    quantidadeON,
+    0
+);
+
+while (true);
+
+#endif
 
   Serial.println("------------------------------------");
   delay(3000);
