@@ -71,7 +71,6 @@ struct Amostra {
 #define MODO_IOT 0
 #define MODO_ON 1
 #define MODO_O1 2
-#define MODO_BENCHMARK 3
 
 #define MODO_EXECUCAO MODO_IOT
 
@@ -119,6 +118,25 @@ void conectarMQTT() {
       delay(2000);
     }
   }
+}
+
+// =========================================
+// MANTÉM WIFI E MQTT ATIVOS (MODOS AA)
+// =========================================
+void manterRedeMQTT() {
+  if (!MQTT_ATIVO) {
+    return;
+  }
+
+  if (WiFi.status() != WL_CONNECTED) {
+    conectarWiFi();
+  }
+
+  if (!mqttClient.connected()) {
+    conectarMQTT();
+  }
+
+  mqttClient.loop();
 }
 
 // =========================================
@@ -207,87 +225,12 @@ float calcularNivelPercentual(float distanciaCm) {
 void publicarMQTT(float distancia, float nivelPercentual, int turbidez);
 
 // =========================================
-// BUFFER CIRCULAR — VERTENTE 2 (O(1))
-// =========================================
-class BufferCircular {
-private:
-  Amostra* buffer;
-  int capacidade;
-  int head;
-  int tail;
-  int quantidade;
-
-public:
-  BufferCircular() : buffer(nullptr), capacidade(0), head(0), tail(0), quantidade(0) {}
-
-  void iniciar(int tam) {
-    liberar();
-    capacidade = tam;
-    buffer = (Amostra*)malloc(capacidade * sizeof(Amostra));
-    head = 0;
-    tail = 0;
-    quantidade = 0;
-  }
-
-  void liberar() {
-    if (buffer != nullptr) {
-      free(buffer);
-      buffer = nullptr;
-    }
-    capacidade = 0;
-    head = 0;
-    tail = 0;
-    quantidade = 0;
-  }
-
-  bool inserir(const Amostra& amostra, unsigned long& latenciaUs) {
-    unsigned long inicio = micros();
-
-    buffer[head] = amostra;
-    head = (head + 1) % capacidade;
-
-    if (quantidade < capacidade) {
-      quantidade++;
-    } else {
-      tail = (tail + 1) % capacidade;
-    }
-
-    latenciaUs = micros() - inicio;
-    return quantidade >= capacidade;
-  }
-
-  void copiarLote(Amostra* destino) const {
-    int indice = tail;
-    for (int i = 0; i < capacidade; i++) {
-      destino[i] = buffer[indice];
-      indice = (indice + 1) % capacidade;
-    }
-  }
-
-  void reiniciar() {
-    head = 0;
-    tail = 0;
-    quantidade = 0;
-  }
-
-  int tamanho() const { return capacidade; }
-};
-
-// =========================================
 // VERTENTE 1 — REALOCAÇÃO + DESLOCAMENTO O(n)
 // =========================================
 Amostra* bufferIneficiente = nullptr;
 int quantidadeIneficiente = 0;
 int numeroLote = 0;
 int contadorAmostras = 0;
-
-void reiniciarBufferIneficiente() {
-  if (bufferIneficiente != nullptr) {
-    free(bufferIneficiente);
-    bufferIneficiente = nullptr;
-  }
-  quantidadeIneficiente = 0;
-}
 
 bool inserirBufferIneficiente(const Amostra& amostra, unsigned long& latenciaUs) {
   unsigned long inicio = micros();
@@ -315,6 +258,65 @@ bool inserirBufferIneficiente(const Amostra& amostra, unsigned long& latenciaUs)
   latenciaUs = micros() - inicio;
   return quantidadeIneficiente >= TAM_BUFFER;
 }
+
+// =========================================
+// BUFFER CIRCULAR — VERTENTE 2 (O(1))
+// =========================================
+class BufferCircular {
+  private:
+    Amostra* buffer;
+    int capacidade;
+    int head;
+    int tail;
+    int quantidade;
+  
+  public:
+    BufferCircular() : buffer(nullptr), capacidade(0), head(0), tail(0), quantidade(0) {}
+  
+    void iniciar(int tam) {
+      liberar();
+      capacidade = tam;
+      buffer = (Amostra*)malloc(capacidade * sizeof(Amostra));
+      head = 0;
+      tail = 0;
+      quantidade = 0;
+    }
+  
+    void liberar() {
+      if (buffer != nullptr) {
+        free(buffer);
+        buffer = nullptr;
+      }
+      capacidade = 0;
+      head = 0;
+      tail = 0;
+      quantidade = 0;
+    }
+  
+    bool inserir(const Amostra& amostra, unsigned long& latenciaUs) {
+      unsigned long inicio = micros();
+  
+      buffer[head] = amostra;
+      head = (head + 1) % capacidade;
+  
+      if (quantidade < capacidade) {
+        quantidade++;
+      } else {
+        tail = (tail + 1) % capacidade;
+      }
+  
+      latenciaUs = micros() - inicio;
+      return quantidade >= capacidade;
+    }
+  
+    void copiarLote(Amostra* destino) const {
+      int indice = tail;
+      for (int i = 0; i < capacidade; i++) {
+        destino[i] = buffer[indice];
+        indice = (indice + 1) % capacidade;
+      }
+    }
+  };
 
 // =========================================
 // GERAÇÃO DE AMOSTRAS REAIS (MODOS AA)
@@ -396,25 +398,17 @@ void publicarLoteMQTT(const char* modo, const Amostra* amostras, int tamanhoLote
 // LOOPS DOS MODOS AA
 // =========================================
 void loopVertenteIneficiente() {
-  if (MQTT_ATIVO) {
-    if (WiFi.status() != WL_CONNECTED) {
-      conectarWiFi();
-    }
-    if (!mqttClient.connected()) {
-      conectarMQTT();
-    }
-    mqttClient.loop();
-  }
+  manterRedeMQTT();
 
   Amostra amostra = gerarAmostraReal();
   unsigned long latenciaUs = 0;
 
   if (inserirBufferIneficiente(amostra, latenciaUs)) {
     numeroLote++;
-    publicarLoteMQTT("O1", bufferIneficiente, TAM_BUFFER, numeroLote, latenciaUs);
+    publicarLoteMQTT("ON", bufferIneficiente, TAM_BUFFER, numeroLote, latenciaUs);
   }
 
-  Serial.printf("O1 | Latencia: %lu us | Heap Livre: %u bytes\n", latenciaUs, ESP.getFreeHeap());
+  Serial.printf("ON | Latencia: %lu us | Heap Livre: %u bytes\n", latenciaUs, ESP.getFreeHeap());
 }
 
 void loopVertenteCircular() {
@@ -431,15 +425,7 @@ void loopVertenteCircular() {
     Serial.println(TAM_BUFFER);
   }
 
-  if (MQTT_ATIVO) {
-    if (WiFi.status() != WL_CONNECTED) {
-      conectarWiFi();
-    }
-    if (!mqttClient.connected()) {
-      conectarMQTT();
-    }
-    mqttClient.loop();
-  }
+  manterRedeMQTT();
 
   Amostra amostra = gerarAmostraReal();
   unsigned long latenciaUs = 0;
@@ -447,74 +433,14 @@ void loopVertenteCircular() {
   if (bufferCircular.inserir(amostra, latenciaUs)) {
     bufferCircular.copiarLote(loteEnvio);
     numeroLote++;
-    publicarLoteMQTT("ON", loteEnvio, TAM_BUFFER, numeroLote, latenciaUs);
+    publicarLoteMQTT("O1", loteEnvio, TAM_BUFFER, numeroLote, latenciaUs);
   }
 
-  Serial.printf("ON | Latencia: %lu us | Heap Livre: %u bytes\n", latenciaUs, ESP.getFreeHeap());
-}
-
-void loopBenchmark() {
-  static int fase = 0;
-  static unsigned long ultimaTroca = 0;
-  static BufferCircular bufferCircular;
-  static Amostra* loteEnvio = nullptr;
-  static bool inicializado = false;
-
-  if (!inicializado) {
-    bufferCircular.iniciar(TAM_BUFFER);
-    loteEnvio = (Amostra*)malloc(TAM_BUFFER * sizeof(Amostra));
-    reiniciarBufferIneficiente();
-    numeroLote = 0;
-    contadorAmostras = 0;
-    inicializado = true;
-
-    Serial.println("Benchmark: alternando O1 e ON (janela deslizante)");
-  }
-
-  if (MQTT_ATIVO) {
-    if (WiFi.status() != WL_CONNECTED) {
-      conectarWiFi();
-    }
-    if (!mqttClient.connected()) {
-      conectarMQTT();
-    }
-    mqttClient.loop();
-  }
-
-  if (millis() - ultimaTroca >= 15000) {
-    fase = (fase + 1) % 2;
-    ultimaTroca = millis();
-    numeroLote = 0;
-    contadorAmostras = 0;
-    reiniciarBufferIneficiente();
-    bufferCircular.reiniciar();
-
-    Serial.println("------------------------------------");
-    Serial.println(fase == 0 ? "Benchmark: VERTENTE 1 (O1)" : "Benchmark: VERTENTE 2 (ON)");
-    Serial.println("------------------------------------");
-  }
-
-  Amostra amostra = gerarAmostraReal();
-  unsigned long latenciaUs = 0;
-
-  if (fase == 0) {
-    if (inserirBufferIneficiente(amostra, latenciaUs)) {
-      numeroLote++;
-      publicarLoteMQTT("O1", bufferIneficiente, TAM_BUFFER, numeroLote, latenciaUs);
-    }
-    Serial.printf("BENCH O1 | Latencia: %lu us | Heap Livre: %u bytes\n", latenciaUs, ESP.getFreeHeap());
-  } else {
-    if (bufferCircular.inserir(amostra, latenciaUs)) {
-      bufferCircular.copiarLote(loteEnvio);
-      numeroLote++;
-      publicarLoteMQTT("ON", loteEnvio, TAM_BUFFER, numeroLote, latenciaUs);
-    }
-    Serial.printf("BENCH ON | Latencia: %lu us | Heap Livre: %u bytes\n", latenciaUs, ESP.getFreeHeap());
-  }
+  Serial.printf("O1 | Latencia: %lu us | Heap Livre: %u bytes\n", latenciaUs, ESP.getFreeHeap());
 }
 
 // =========================================
-// LOOP DO PROJETO IoT (inalterado)
+// LOOP DO PROJETO IoT
 // =========================================
 void loopIoT() {
   // Parte de rede só funciona quando ativar MQTT_ATIVO = true
@@ -678,18 +604,13 @@ void setup() {
 #if MODO_EXECUCAO == MODO_IOT
   Serial.println("Modo: IoT (cisterna)");
   Serial.println("Leitura local dos sensores pronta.");
-#elif MODO_EXECUCAO == MODO_O1
+#elif MODO_EXECUCAO == MODO_ON
   Serial.println("Modo: Vertente 1 - O(n) com realloc/deslocamento");
   Serial.println("Envio: janela deslizante (ex: 1-100, 2-101, 3-102...)");
   Serial.print("Tamanho da janela (TAM_BUFFER): ");
   Serial.println(TAM_BUFFER);
-#elif MODO_EXECUCAO == MODO_ON
-  Serial.println("Modo: Vertente 2 - Buffer Circular O(1)");
-  Serial.println("Envio: janela deslizante (ex: 1-100, 2-101, 3-102...)");
-  Serial.print("Tamanho da janela (TAM_BUFFER): ");
-  Serial.println(TAM_BUFFER);
-#elif MODO_EXECUCAO == MODO_BENCHMARK
-  Serial.println("Modo: Benchmark comparativo O1 vs ON");
+#elif MODO_EXECUCAO == MODO_O1
+  Serial.println("Modo: Vertente 2 - O(1) Buffer Circular ");
   Serial.println("Envio: janela deslizante (ex: 1-100, 2-101, 3-102...)");
   Serial.print("Tamanho da janela (TAM_BUFFER): ");
   Serial.println(TAM_BUFFER);
@@ -701,14 +622,11 @@ void setup() {
 void loop() {
 #if MODO_EXECUCAO == MODO_IOT
   loopIoT();
-#elif MODO_EXECUCAO == MODO_O1
+#elif MODO_EXECUCAO == MODO_ON
   loopVertenteIneficiente();
   delay(1);
-#elif MODO_EXECUCAO == MODO_ON
+#elif MODO_EXECUCAO == MODO_O1
   loopVertenteCircular();
-  delay(1);
-#elif MODO_EXECUCAO == MODO_BENCHMARK
-  loopBenchmark();
   delay(1);
 #endif
 }
