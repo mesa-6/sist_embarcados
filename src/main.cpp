@@ -10,15 +10,23 @@ const bool MQTT_ATIVO = true; // depois muda para true
 // =========================================
 // CONFIGURAÇÕES DO WIFI
 // =========================================
-const char* WIFI_SSID = "GHEYSON";
-const char* WIFI_PASSWORD = "22OXEmm19";
+const char* WIFI_SSID = "uaifai-brum";
+const char* WIFI_PASSWORD = "bemvindoaocesar";
 
 // =========================================
 // CONFIGURAÇÕES DO MQTT
 // =========================================
-const char* MQTT_BROKER = "10.0.0.156";
+const char* MQTT_BROKER = "172.26.125.207";
 const uint16_t MQTT_PORT = 1883;
 const char* MQTT_TOPIC = "cisterna/status";
+const char* MQTT_LOTE_TOPIC = "cisterna/lote";
+
+// Overhead do frame MQTT (cabeçalho + length do tópico + margem)
+const size_t MQTT_FRAME_OVERHEAD = 20;
+
+uint16_t mqttBufferSize = 256;
+
+uint16_t estimarBufferMqtt(size_t payloadLen, const char* topic);
 
 // =========================================
 // PINOS DO SENSOR ULTRASSÔNICO
@@ -64,15 +72,30 @@ struct Amostra {
 
 // =========================================
 // TAMANHO DOS TESTES (alterar entre compilações)
-// 100 | 5000 | 20000
+// 100 | 5000 | 1000 | 20000
 // =========================================
 #define TAM_BUFFER 100
+#define MAX_LOTES 3
 
 #define MODO_IOT 0
 #define MODO_ON 1
 #define MODO_O1 2
 
 #define MODO_EXECUCAO MODO_IOT
+
+uint16_t estimarBufferMqtt(size_t payloadLen, const char* topic) {
+  size_t total = payloadLen + strlen(topic) + MQTT_FRAME_OVERHEAD;
+  if (total > 65535) {
+    return 65535;
+  }
+  return (uint16_t)(((total + 255) / 256) * 256);
+}
+
+uint16_t estimarBufferMqttLoteMax() {
+  // Cabeçalho JSON + pior caso por amostra (~40 chars) + fechamento "]}")
+  const size_t payloadMax = 96UL + (size_t)TAM_BUFFER * 40UL + 2UL;
+  return estimarBufferMqtt(payloadMax, MQTT_LOTE_TOPIC);
+}
 
 // =========================================
 // CONECTAR AO WIFI
@@ -222,7 +245,7 @@ float calcularNivelPercentual(float distanciaCm) {
   return nivel;
 }
 
-void publicarMQTT(float distancia, float nivelPercentual, int turbidez);
+bool publicarMQTT(float distancia, float nivelPercentual, int turbidez);
 
 // =========================================
 // VERTENTE 1 — REALOCAÇÃO + DESLOCAMENTO O(n)
@@ -363,7 +386,7 @@ void publicarLoteMQTT(const char* modo, const Amostra* amostras, int tamanhoLote
     snprintf(
       item,
       sizeof(item),
-      "{\"id\":%d,\"ts\":%lu,\"turbidez\":%d}",
+      "{\"id\":%d,\"ts\":%lu,\"tz\":%d}",
       amostras[i].id,
       amostras[i].timestamp,
       amostras[i].turbidez
@@ -373,13 +396,30 @@ void publicarLoteMQTT(const char* modo, const Amostra* amostras, int tamanhoLote
 
   payload += "]}";
 
-  if (payload.length() + 1 > 65535) {
-    Serial.println("Payload MQTT excede limite. Lote registrado apenas no Serial.");
+  const size_t pacoteNecessario = payload.length() + strlen(MQTT_LOTE_TOPIC) + MQTT_FRAME_OVERHEAD;
+  if (pacoteNecessario > mqttBufferSize) {
+    Serial.print("Payload (");
+    Serial.print(payload.length());
+    Serial.print(" bytes) excede buffer MQTT (");
+    Serial.print(mqttBufferSize);
+    Serial.println(" bytes).");
     return;
   }
 
-  mqttClient.setBufferSize(payload.length() + 1);
-  mqttClient.publish("cisterna/lote", payload.c_str());
+  bool ok = mqttClient.publish(MQTT_LOTE_TOPIC, payload.c_str());
+  mqttClient.loop();
+
+  if (!ok) {
+    Serial.print("MQTT publish FALHOU (lote ");
+    Serial.print(numeroDoLote);
+    Serial.print(", payload=");
+    Serial.print(payload.length());
+    Serial.print(" bytes, buffer=");
+    Serial.print(mqttBufferSize);
+    Serial.print(") | estado=");
+    Serial.println(mqttClient.state());
+    return;
+  }
 
   Serial.print("Lote ");
   Serial.print(numeroDoLote);
@@ -398,14 +438,28 @@ void publicarLoteMQTT(const char* modo, const Amostra* amostras, int tamanhoLote
 // LOOPS DOS MODOS AA
 // =========================================
 void loopVertenteIneficiente() {
+  static bool experimentoConcluido = false;
+
+  if (experimentoConcluido) {
+    delay(1000);
+    return;
+  }
+
   manterRedeMQTT();
 
   Amostra amostra = gerarAmostraReal();
   unsigned long latenciaUs = 0;
 
   if (inserirBufferIneficiente(amostra, latenciaUs)) {
-    numeroLote++;
-    publicarLoteMQTT("ON", bufferIneficiente, TAM_BUFFER, numeroLote, latenciaUs);
+    if (numeroLote < MAX_LOTES) {
+      numeroLote++;
+      publicarLoteMQTT("ON", bufferIneficiente, TAM_BUFFER, numeroLote, latenciaUs);
+    }
+
+    if (numeroLote >= MAX_LOTES) {
+      Serial.println("Experimento concluido: 5 lotes enviados.");
+      experimentoConcluido = true;
+    }
   }
 
   Serial.printf("ON | Latencia: %lu us | Heap Livre: %u bytes\n", latenciaUs, ESP.getFreeHeap());
@@ -415,6 +469,12 @@ void loopVertenteCircular() {
   static BufferCircular bufferCircular;
   static Amostra* loteEnvio = nullptr;
   static bool inicializado = false;
+  static bool experimentoConcluido = false;
+
+  if (experimentoConcluido) {
+    delay(1000);
+    return;
+  }
 
   if (!inicializado) {
     bufferCircular.iniciar(TAM_BUFFER);
@@ -431,9 +491,16 @@ void loopVertenteCircular() {
   unsigned long latenciaUs = 0;
 
   if (bufferCircular.inserir(amostra, latenciaUs)) {
-    bufferCircular.copiarLote(loteEnvio);
-    numeroLote++;
-    publicarLoteMQTT("O1", loteEnvio, TAM_BUFFER, numeroLote, latenciaUs);
+    if (numeroLote < MAX_LOTES) {
+      bufferCircular.copiarLote(loteEnvio);
+      numeroLote++;
+      publicarLoteMQTT("O1", loteEnvio, TAM_BUFFER, numeroLote, latenciaUs);
+    }
+
+    if (numeroLote >= MAX_LOTES) {
+      Serial.println("Experimento concluido: 5 lotes enviados.");
+      experimentoConcluido = true;
+    }
   }
 
   Serial.printf("O1 | Latencia: %lu us | Heap Livre: %u bytes\n", latenciaUs, ESP.getFreeHeap());
@@ -521,7 +588,14 @@ void loopIoT() {
         
         // Publica no MQTT para o Node-RED enviar o e-mail
         if (MQTT_ATIVO && mqttClient.connected()) {
-          mqttClient.publish("cisterna/alerta", "{\"alerta\":\"turbidez_prolongada\", \"mensagem\":\"A água permanece turva. Limpeza necessária!\"}");
+          bool ok = mqttClient.publish(
+            "cisterna/alerta",
+            "{\"alerta\":\"turbidez_prolongada\", \"mensagem\":\"A água permanece turva. Limpeza necessária!\"}"
+          );
+          mqttClient.loop();
+          if (!ok) {
+            Serial.println("MQTT publish FALHOU em cisterna/alerta");
+          }
         }
         
         // Registra o momento em que este alerta foi enviado para iniciar o "cooldown"
@@ -549,7 +623,12 @@ void loopIoT() {
 // =========================================
 // PUBLICA OS DADOS NO MQTT (Modo IoT)
 // =========================================
-void publicarMQTT(float distancia, float nivelPercentual, int turbidez) {
+bool publicarMQTT(float distancia, float nivelPercentual, int turbidez) {
+  if (!mqttClient.connected()) {
+    Serial.println("MQTT publish ignorado: cliente desconectado.");
+    return false;
+  }
+
   char payload[220];
 
   snprintf(
@@ -561,12 +640,24 @@ void publicarMQTT(float distancia, float nivelPercentual, int turbidez) {
     turbidez
   );
 
-  mqttClient.publish(MQTT_TOPIC, payload);
+  bool ok = mqttClient.publish(MQTT_TOPIC, payload);
+  mqttClient.loop();
 
-  Serial.print("MQTT enviado em ");
-  Serial.print(MQTT_TOPIC);
-  Serial.print(": ");
-  Serial.println(payload);
+  if (ok) {
+    Serial.print("MQTT enviado em ");
+    Serial.print(MQTT_TOPIC);
+    Serial.print(": ");
+    Serial.println(payload);
+  } else {
+    Serial.print("MQTT publish FALHOU em ");
+    Serial.print(MQTT_TOPIC);
+    Serial.print(" | estado=");
+    Serial.print(mqttClient.state());
+    Serial.print(" | payload=");
+    Serial.println(payload);
+  }
+
+  return ok;
 }
 
 void setup() {
@@ -590,12 +681,25 @@ void setup() {
     mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
 
 #if MODO_EXECUCAO == MODO_IOT
-    mqttClient.setBufferSize(256);
+    mqttBufferSize = estimarBufferMqtt(128, MQTT_TOPIC);
 #else
-    mqttClient.setBufferSize(65535);
+    mqttBufferSize = estimarBufferMqttLoteMax();
 #endif
 
+    if (!mqttClient.setBufferSize(mqttBufferSize)) {
+      Serial.print("AVISO: setBufferSize falhou (");
+      Serial.print(mqttBufferSize);
+      Serial.println(" bytes). Tentando 512...");
+      mqttBufferSize = 512;
+      mqttClient.setBufferSize(mqttBufferSize);
+    }
+
+    Serial.print("Buffer MQTT alocado: ");
+    Serial.print(mqttBufferSize);
+    Serial.println(" bytes");
+
     mqttClient.setKeepAlive(30);
+    conectarMQTT();
   }
 
   Serial.println();
